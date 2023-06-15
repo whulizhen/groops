@@ -47,7 +47,7 @@ GnssReceiverGeneratorLowEarthOrbiter::GnssReceiverGeneratorLowEarthOrbiter(Confi
     readConfig(config, "inputfileReceiverDefinition",  fileNameReceiverDef,     Config::OPTIONAL, "{groopsDataDir}/gnss/receiverLowEarthOrbiter/", "observed signal types");
     readConfig(config, "inputfileAccuracyDefinition",  fileNameAccuracyDef,     Config::MUSTSET,  "{groopsDataDir}/gnss/receiverLowEarthOrbiter/", "elevation and azimut dependent accuracy");
     readConfig(config, "inputfileObservations",        fileNameObs,             Config::OPTIONAL,  "gnssReceiver_{loopTime:%D}.dat", "");
-    readConfig(config, "inputfileOrbit",               fileNameOrbit,           Config::MUSTSET,  "",     "approximate positions");
+    readConfig(config, "inputfileOrbit",               fileNameOrbit,           Config::OPTIONAL,  "",    "approximate positions");
     readConfig(config, "inputfileStarCamera",          fileNameStarCamera,      Config::MUSTSET,  "",     "satellite attitude");
     readConfig(config, "sigmaFactorPhase",             exprSigmaPhase,          Config::OPTIONAL, "",     "PHASE: factor = f(FREQ, ELE, SNR, ROTI, dTEc, IONOINDEX)");
     readConfig(config, "sigmaFactorCode",              exprSigmaCode,           Config::OPTIONAL, "",     "CODE: factor = f(FREQ, ELE, SNR, ROTI, dTEc, IONOINDEX)");
@@ -133,8 +133,17 @@ void GnssReceiverGeneratorLowEarthOrbiter::init(const std::vector<Time> &times, 
         recv->global2local.resize(times.size());
         recv->local2antenna.resize(times.size());
 
-        OrbitArc      orbit      = InstrumentFile::read(fileNameOrbit);
-        StarCameraArc starCamera = InstrumentFile::read(fileNameStarCamera);
+        OrbitArc      orbit;
+        StarCameraArc starCamera;
+        if(!fileNameOrbit.empty())
+        {
+          orbit      = InstrumentFile::read(fileNameOrbit);
+        }
+        if(!fileNameStarCamera.empty())
+        {
+          starCamera = InstrumentFile::read(fileNameStarCamera);
+        }
+        
         Arc::checkSynchronized({orbit, starCamera});
 
         UInt idEpoch = 0;

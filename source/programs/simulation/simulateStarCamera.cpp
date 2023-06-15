@@ -43,9 +43,19 @@ void SimulateStarCamera::run(Config &config, Parallel::CommunicatorPtr comm)
   try
   {
     FileName orbitName, starCameraName;
-
+    std::string att_mode, choice;
     readConfig(config, "outputfileStarCamera", starCameraName, Config::MUSTSET,  "", "");
     readConfig(config, "inputfileOrbit",       orbitName,      Config::MUSTSET, "", "position and velocity defines the orientation of the satellite at each epoch");
+    
+    //start a choice
+    readConfigChoice(config, "attitudeMode", choice, Config::MUSTSET, "earth_pointing", "transformation from CRF to TRF");
+    if(readConfigChoiceElement(config, "earth_pointing",     choice, "x in vel, z points to earth"))
+      att_mode = "earth_pointing";
+    if(readConfigChoiceElement(config, "velocity_leading",     choice, "x in vel, y in orbital normal"))
+      att_mode = "velocity_leading";
+    
+    endChoice(config);
+
     if(isCreateSchema(config)) return;
 
     logStatus<<"read orbit and generate star camera data"<<Log::endl;
@@ -58,18 +68,35 @@ void SimulateStarCamera::run(Config &config, Parallel::CommunicatorPtr comm)
       StarCameraArc arc;
       for(UInt i=0; i<orbit.size(); i++)
       {
-        Vector3d x = orbit.at(i).velocity;
-        if(x.r()==0)
+        Vector3d vel_eci = orbit.at(i).velocity;
+        Vector3d pos_eci = orbit.at(i).position;
+
+        if( vel_eci.r()==0)
         {
           if(i<orbit.size()-1)
-            x = orbit.at(i+1).position - orbit.at(i).position;
+            vel_eci = orbit.at(i+1).position - orbit.at(i).position;
           else
-            x = orbit.at(i).position - orbit.at(i-1).position;
+            vel_eci = orbit.at(i).position - orbit.at(i-1).position;
+        }
+
+        Vector3d x,y,z;
+        if(att_mode == "earth_pointing")
+        {
+            x = vel_eci;
+            z = Vector3d(-pos_eci.x(),-pos_eci.y(),-pos_eci.z());
+            y = crossProduct(z, x);
+        }
+        else if(att_mode == "velocity_leading")
+        {
+            x = vel_eci;
+            y = crossProduct(vel_eci, pos_eci);
+            z = crossProduct(x,y);
         }
 
         StarCameraEpoch epoch;
         epoch.time   = orbit.at(i).time;
-        epoch.rotary = Rotary3d(x, crossProduct(x, orbit.at(i).position));
+        // epoch.rotary = Rotary3d(x, crossProduct(x, orbit.at(i).position));
+        epoch.rotary = Rotary3d(x, y);
         arc.push_back(epoch);
       }
       return arc;
