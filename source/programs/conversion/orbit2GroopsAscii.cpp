@@ -54,16 +54,21 @@ void Orbit2GroopsAscii::run(Config &config, Parallel::CommunicatorPtr /*comm*/)
 
     readConfig(config, "outputfile",          outName,        Config::MUSTSET,  "", "");
     readConfig(config, "inputfileOrbit",      inName,         Config::MUSTSET,  "", "");
-    readConfig(config, "inputfileCovariance", inNameCov,      Config::MUSTSET,  "", "");
+    readConfig(config, "inputfileCovariance", inNameCov,      Config::OPTIONAL,  "", "");
     readConfig(config, "earthRotation",       earthRotation,  Config::MUSTSET,  "", "");
     readConfig(config, "firstLine",           textLine1,      Config::OPTIONAL, "", "Text for first line");
     if(isCreateSchema(config)) return;
 
     logStatus<<"read orbit file <"<<inName<<">"<<Log::endl;
     OrbitArc        orbit = InstrumentFile::read(inName);
-    Covariance3dArc cov   = InstrumentFile::read(inNameCov);
-    Arc::checkSynchronized({orbit, cov});
-
+    Covariance3dArc cov;
+    if(!inNameCov.empty())
+    {
+        cov   = InstrumentFile::read(inNameCov);
+        Arc::checkSynchronized({orbit, cov});
+    }
+    //Arc::checkSynchronized({orbit, cov});
+    
     logStatus<<"write file <"<<outName<<">"<<Log::endl;
     OutFile file(outName);
     file<<"# "<<textLine1<<textDatum<<std::endl;
